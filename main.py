@@ -5,8 +5,7 @@ pygame.init()
 
 W, H = 800, 600
 
-background = (44, 200, 100)
-
+background = pygame.transform.scale(pygame.image.load('Background.png'), (W, H))
 winn = pygame.display.set_mode((W, H))
 pygame.display.set_caption('Платформер')
 
@@ -51,7 +50,7 @@ player = Player(100, 100, 50, 50)
 
 game = True
 while game:
-    winn.fill(background)
+    winn.blit(background, (0, 0))
     for e in pygame.event.get():
         if e.type == pygame.QUIT:
             game = False
