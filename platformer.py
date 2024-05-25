@@ -146,11 +146,14 @@ class Player(pygame.sprite.Sprite):
             self.make_hit()
             self.rect.x = 0
             self.rect.y = 0
+            
 
 
     def draw(self):
         screen.blit(self.sprite, (self.rect.x, self.rect.y))
 
+    def kill(self):
+        self.kill()
 
 class Object(pygame.sprite.Sprite):
     def __init__(self, dir, filename, x, y, size):
@@ -164,11 +167,16 @@ class Object(pygame.sprite.Sprite):
 
     def draw(self):
         screen.blit(self.image, (self.rect.x, self.rect.y))
+    
+    def kill(self):
+        self.kill()
 
 
 class Block(Object):
     pass
 
+class Spike(Object):
+    pass
 
 class Saw(Object):
     def __init__(self, dir, filename, x, y, size):
@@ -180,9 +188,11 @@ class Saw(Object):
             self.image.copy()
         )  # Сохраняем копию оригинального изображения
 
-    def on(self, cell_size, n):
+    def on(self, cell_size, n, k):
         if self.rect.x <= cell_size * n:
             self.side = "right"
+        if self.rect.x >= cell_size * k:
+            self.side = "left"
         if self.rect.x >= screen_W - 128:
             self.side = "left"
         if self.side == "left":
@@ -200,7 +210,27 @@ class Saw(Object):
             center=self.rect.center
         )  # Обновляем положение спрайта после поворота
 
+class Mac(Object):
+    def __init__(self, dir, filename, x, y, size):
+        super().__init__(dir, filename, x, y, size)
+        self.speed = 1
+        self.angle = 0
+        self.side = "right"
+        self.original_image = (
+            self.image.copy()
+        )  # Сохраняем копию оригинального изображения
 
+    def on(self, cell_size, n, k):
+        if self.rect.x <= cell_size * n:
+            self.side = "right"
+        if self.rect.x >= cell_size * k:
+            self.side = "left"
+        if self.rect.x >= screen_W - 128:
+            self.side = "left"
+        if self.side == "left":
+            self.rect.x -= self.speed
+        else:
+            self.rect.x += self.speed
 class Door(Object):
     def __init__(self, dir, filename, x, y, width, height):
         super().__init__(dir, filename, x, y, width)
@@ -218,26 +248,37 @@ player = Player(0, 0, 50, 50)
 
 block_size = 64
 
-blocks, saws = (
+blocks, saws, spikes, macs = (
+    pygame.sprite.Group(),
+    pygame.sprite.Group(),
     pygame.sprite.Group(),
     pygame.sprite.Group()
 )
 
 blocks.add(
-    [Block("tiles", "Grass.png", i * block_size, screen_H + 10 - block_size, block_size) for i in range(17)],
-    [Block("tiles", "Grass.png", i * block_size, i * block_size, block_size) for i in range(2, 9, 2)],
-    [Block("tiles", "Grass.png", i * block_size, screen_H // 11 * 2 - block_size, block_size) for i in range(1)]
-    # [Block("tiles", "Grass.png", i * block_size, screen_H // 11 * 3 - block_size, block_size) for i in range(1)],
-    # [Block("tiles", "Grass.png", i * block_size, screen_H // 11 * 2 - block_size, block_size) for i in range(1)],
-    # [Block("tiles", "Grass.png", i * block_size, screen_H // 11 * 2 - block_size, block_size) for i in range(1)],
-    # [Block("tiles", "Grass.png", i * block_size, screen_H // 11 * 2 - block_size, block_size) for i in range(1)],
-    # [Block("tiles", "Grass.png", i * block_size, screen_H // 11 * 2 - block_size, block_size) for i in range(1)],
-    # [Block("tiles", "Grass.png", i * block_size, screen_H // 11 * 2 - block_size, block_size) for i in range(1)],
+    [Block("tiles", "Grass.png", i * block_size, screen_H + 10 - block_size, block_size) for i in range(7)],
+    [Block("tiles", "Grass.png", i * block_size, screen_H + 10 - block_size, block_size) for i in range(8, 15)],
+    [Block("tiles", "Dirt.png", i * block_size, (screen_H + 10) // 11 * 12 - block_size, block_size) for i in range(7, 8)],
+    [Block("tiles", "Grass.png", i * block_size, (screen_H + 10) // 11 * 2 - block_size, block_size) for i in range(10)],
+    [Block("tiles", "Grass.png", i * block_size, (screen_H + 10) // 11 * 5 - block_size, block_size) for i in range(3, 7)],
+    [Block("tiles", "Grass.png", i * block_size, (screen_H + 10) // 11 * 5 - block_size, block_size) for i in range(8, 15)],
+    [Block("tiles", "Dirt.png", i * block_size, (screen_H + 10) // 11 * 6 - block_size, block_size) for i in range(7, 8)],
+    [Block("tiles", "Grass.png", i * block_size, (screen_H + 10) // 11 * 8 - block_size, block_size) for i in range(12)]
 )
 
-# saws.add(Saw("traps", "Saw.png", block_size * 8, block_size * 8, block_size * 2))
+spikes.add(
+    [Spike("traps", "Spike_Down.png", i * block_size + 16, (screen_H + 10) // 11 * 6 - block_size, block_size//2) for i in range(3, 7)],
+    [Spike("traps", "Spike_Down.png", i * block_size + 16, (screen_H + 10) // 11 * 6 - block_size, block_size//2) for i in range(8, 15)]
+)
 
-# door = Door("tiles", "door.png", block_size * 4, block_size * 5, block_size, block_size * 2)
+saws.add(
+    [Saw("traps", "Saw.png", block_size * 10, block_size * 2, block_size * 2)],
+    [Saw("traps", "Saw.png", block_size * 5, block_size * 8, block_size * 2)]
+)
+
+macs.add(Saw("traps", "Mac 128.png", block_size * 5, block_size * 6, block_size))
+
+door = Door("tiles", "door.png", 0, block_size * 8, block_size, block_size * 2)
 
 
 # обработка столкновений и управление
@@ -284,19 +325,13 @@ def hotkeys(player, blocks):
     collide_vertical(player, blocks, player.y_vel)
 
 # игровой цикл
+font1 = pygame.font.Font(None, 90)
 run_game = True
 finish = False
+lvl = 0
+HP = 3
 while run_game:
-
     screen.blit(background, (0, 0))
-    for line in range(screen_H // 64 + 1):
-        pygame.draw.line(
-            screen, (255, 255, 255), (0, line * 64), (screen_W, line * 64), 2
-        )
-        for col in range(screen_W // 64 + 1):
-            pygame.draw.line(
-                screen, (255, 255, 255), (col * 64, 0), (col * 64, screen_H), 2
-            )
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run_game = False
@@ -313,22 +348,43 @@ while run_game:
     # отрисовка
     for block in blocks:
         block.draw()
-    # for saw in saws:
-    #     saw.draw()
-    #     saw.animation()
-    #     saw.on(block_size, 5)
-    #     player.collide_trap(saw)
+    for saw in saws:
+        if pygame.sprite.collide_mask(player, saw):
+            HP -= 1
+        saw.draw()
+        saw.animation()
+        saw.on(block_size, 2, 11)
+        player.collide_trap(saw)
+    for mac in macs:
+        if pygame.sprite.collide_mask(player, mac):
+            HP -= 1
+        mac.draw()
+        mac.on(block_size, 0, 11)
+        player.collide_trap(mac)
+    for spike in spikes:
+        if pygame.sprite.collide_mask(player, spike):
+            HP -= 1
+        spike.draw()
+        player.collide_trap(spike)
+
+    door.draw()
     
-    # door.draw()
-    
-    # if pygame.sprite.collide_mask(player, door):
-    #     font1 = pygame.font.Font(None, 90)
-    #     text = font1.render('You WIN!', True, (0, 22, 13))
-    #     screen.blit(text, (350, 350))
-    #     finish = True
+    if pygame.sprite.collide_mask(player, door):
+        text = font1.render('You WIN!', True, (0, 22, 13))
+        screen.blit(text, (350, 350))
+        finish = True
+
+
+    if HP < 1:
+        text = font1.render('You LOSE', True, (0, 22, 13))
+        screen.blit(text, (350, 350))
+        finish = True
+
+
+    hptext = font1.render('HP:' + str(HP), True, (0, 0, 0))
+    screen.blit(hptext, (10, 10))
 
     player.draw()
-
 
     pygame.display.update()
     clock.tick(FPS)
