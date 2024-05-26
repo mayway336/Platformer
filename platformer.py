@@ -152,8 +152,9 @@ class Player(pygame.sprite.Sprite):
     def draw(self):
         screen.blit(self.sprite, (self.rect.x, self.rect.y))
 
-    def kill(self):
-        self.kill()
+    def remove_s(self):
+        self.rect.x = 0
+        self.rect.y = 0
 
 class Object(pygame.sprite.Sprite):
     def __init__(self, dir, filename, x, y, size):
@@ -168,7 +169,7 @@ class Object(pygame.sprite.Sprite):
     def draw(self):
         screen.blit(self.image, (self.rect.x, self.rect.y))
     
-    def kill(self):
+    def kill_s(self):
         self.kill()
 
 
@@ -213,7 +214,7 @@ class Saw(Object):
 class Mac(Object):
     def __init__(self, dir, filename, x, y, size):
         super().__init__(dir, filename, x, y, size)
-        self.speed = 1
+        self.speed = 2
         self.angle = 0
         self.side = "right"
         self.original_image = (
@@ -241,6 +242,10 @@ class Door(Object):
             pygame.image.load(path), (width, height)
         ).convert_alpha()
         self.mask = pygame.mask.from_surface(self.image)
+    
+    def new_lvl(self, new_x, new_y):
+        self.rect.x = new_x
+        self.rect.y = new_y
 
 
 # игровые переменные
@@ -248,7 +253,13 @@ player = Player(0, 0, 50, 50)
 
 block_size = 64
 
-blocks, saws, spikes, macs = (
+blocks, saws, spikes, macs, doors, blocks1, saws1, spikes1, macs1, doors1 = (
+    pygame.sprite.Group(),
+    pygame.sprite.Group(),
+    pygame.sprite.Group(),
+    pygame.sprite.Group(),
+    pygame.sprite.Group(),
+    pygame.sprite.Group(),
     pygame.sprite.Group(),
     pygame.sprite.Group(),
     pygame.sprite.Group(),
@@ -266,17 +277,31 @@ blocks.add(
     [Block("tiles", "Grass.png", i * block_size, (screen_H + 10) // 11 * 8 - block_size, block_size) for i in range(12)]
 )
 
+blocks1.add(
+    [Block("tiles", "Grass.png", i * block_size, (screen_H + 10) - block_size, block_size) for i in range(0, 5, 15)],
+    [Block("tiles", "Grass.png", i * block_size, (screen_H + 10) // 11 * 3 - block_size, block_size) for i in range(3, 4)],
+    [Block("tiles", "Dirt.png", i * block_size, (screen_H + 10) // 11 * 6 - block_size, block_size) for i in range(12)],
+    [Block("tiles", "Dirt.png", i * block_size, (screen_H + 10) // 11 * 9 - block_size, block_size) for i in range(2, 15)],
+    [Block("tiles", "Dirt.png", i * block_size, (screen_H + 10) // 11 * 12 - block_size, block_size) for i in range(15)],
+)
+
 spikes.add(
     [Spike("traps", "Spike_Down.png", i * block_size + 16, (screen_H + 10) // 11 * 6 - block_size, block_size//2) for i in range(3, 7)],
     [Spike("traps", "Spike_Down.png", i * block_size + 16, (screen_H + 10) // 11 * 6 - block_size, block_size//2) for i in range(8, 15)]
 )
+
+spikes1.add(Spike("traps", "Spike_Up.png", i * block_size + 16, (screen_H + 10) // 11 * 5 + 32 - block_size, block_size//2) for i in range(12))
 
 saws.add(
     [Saw("traps", "Saw.png", block_size * 10, block_size * 2, block_size * 2)],
     [Saw("traps", "Saw.png", block_size * 5, block_size * 8, block_size * 2)]
 )
 
-macs.add(Saw("traps", "Mac 128.png", block_size * 5, block_size * 6, block_size))
+saws1.add(Saw("traps", "Saw.png", block_size * 7, block_size * 10, block_size))
+
+macs.add(Mac("traps", "Mac 128.png", block_size * 5, block_size * 6, block_size))
+
+macs1.add(Mac("traps", "Mac 128.png", block_size * 7, block_size * 7, block_size))
 
 door = Door("tiles", "door.png", 0, block_size * 8, block_size, block_size * 2)
 
@@ -330,8 +355,13 @@ run_game = True
 finish = False
 lvl = 0
 HP = 3
+
 while run_game:
     screen.blit(background, (0, 0))
+
+    hptext = font1.render('HP:' + str(HP), True, (0, 0, 0))
+
+    screen.blit(hptext, (10, 10))
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run_game = False
@@ -351,6 +381,7 @@ while run_game:
     for saw in saws:
         if pygame.sprite.collide_mask(player, saw):
             HP -= 1
+            hptext = font1.render('HP:' + str(HP), True, (0, 0, 0))
         saw.draw()
         saw.animation()
         saw.on(block_size, 2, 11)
@@ -358,21 +389,90 @@ while run_game:
     for mac in macs:
         if pygame.sprite.collide_mask(player, mac):
             HP -= 1
+            hptext = font1.render('HP:' + str(HP), True, (0, 0, 0))
         mac.draw()
         mac.on(block_size, 0, 11)
         player.collide_trap(mac)
     for spike in spikes:
         if pygame.sprite.collide_mask(player, spike):
             HP -= 1
+            hptext = font1.render('HP:' + str(HP), True, (0, 0, 0))
         spike.draw()
         player.collide_trap(spike)
 
-    door.draw()
+        door.draw()
     
     if pygame.sprite.collide_mask(player, door):
-        text = font1.render('You WIN!', True, (0, 22, 13))
-        screen.blit(text, (350, 350))
-        finish = True
+        HP = 3
+        for block in blocks:
+            block.kill_s()
+        for saw in saws:
+            saw.kill_s()
+        for mac in macs:
+            mac.kill_s()
+        for spike in spikes:
+            spike.kill_s()
+        door.new_lvl(block_size * 13, block_size * 9)
+        player.remove_s()
+        lvl +=1
+            
+
+        while run_game:
+            screen.blit(background, (0, 0))
+
+            hptext = font1.render('HP:' + str(HP), True, (0, 0, 0))
+
+            screen.blit(hptext, (10, 10))
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    run_game = False
+                    break
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE and player.jump_count < 2:
+                        player.jump()
+
+            # передвижение
+            if not finish:
+                player.loop()
+            # столкновение
+            hotkeys(player, blocks)
+            # отрисовка
+            door.draw()
+            for block1 in blocks1:
+                block1.draw()
+            for saw1 in saws1:
+                if pygame.sprite.collide_mask(player, saw1):
+                    HP -= 1
+                    hptext = font1.render('HP:' + str(HP), True, (0, 0, 0))
+                saw1.draw()
+                saw1.animation()
+                saw1.on(block_size, 0, 11)
+                player.collide_trap(saw1)
+            for mac1 in macs1:
+                if pygame.sprite.collide_mask(player, mac1):
+                    HP -= 1
+                    hptext = font1.render('HP:' + str(HP), True, (0, 0, 0))
+                mac1.draw()
+                mac1.on(block_size, 2, 15)
+                player.collide_trap(mac1)
+            for spike1 in spikes1:
+                if pygame.sprite.collide_mask(player, spike1):
+                    HP -= 1
+                    hptext = font1.render('HP:' + str(HP), True, (0, 0, 0))
+                spike1.draw()
+                player.collide_trap(spike1)    
+
+           
+            if HP < 1:
+                text = font1.render('You LOSE', True, (0, 22, 13))
+                screen.blit(text, (350, 350))
+                finish = True
+
+
+            if lvl >= 2:
+                text = font1.render('You WIN!', True, (0, 22, 13))
+                screen.blit(text, (350, 350))
+                finish = True
 
 
     if HP < 1:
@@ -380,9 +480,11 @@ while run_game:
         screen.blit(text, (350, 350))
         finish = True
 
+    if lvl >= 2:
+        text = font1.render('You WIN!', True, (0, 22, 13))
+        screen.blit(text, (350, 350))
+        finish = True
 
-    hptext = font1.render('HP:' + str(HP), True, (0, 0, 0))
-    screen.blit(hptext, (10, 10))
 
     player.draw()
 
